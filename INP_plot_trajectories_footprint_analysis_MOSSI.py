@@ -14,10 +14,6 @@ import math
 from matplotlib.colors import LinearSegmentedColormap
 import INP_source_apportionment_module as INPmod
 
-
-location	 			= 'Eureka'
-day_to_plot 			= 13				#Alert 	7,8,9  Eureka 11,13  Inuvik 20, 21
-sample_no 				= 3					#Alert 7-5, 8-4, 9-3  Eureka 11-4, 13-4  Inuvik 20-45, 21-4
 bt_length 				= 20
 
 include_trajectories	= True
@@ -28,26 +24,47 @@ include_oceans			= True
 
 include_fires			= True
 fire_threshold			= 80.
-MODIS_file				= 'fire_archive_M6_6849.txt'
+MODIS_file				= 'fire_archive_M6_8473.txt'
+
 
 include_sea_ice			= True
-max_ice_day				= 91 				#Inuvik 103 (april 13)  Eureka 91 (April 1)  Alert 91 (April 1)
+max_ice_day				= 195 				#MOSSI max is 185 (jul 03) (min is Aug 22)
 
 include_deserts 		= True
 
 boundary_layer			= True
 
-save_fig				= False
+save_fig				= True
 
-traj_type 				= 'met_ensemble'		#'posn_matrix' 'met_ensemble'
 nx, ny 					= 180,90. 				#grid
 
+mossi_file = '/Users/mcallister/projects/INP/MOSSI/MOSSI_sampling_start_stop_times.txt'
 
-for day_to_plot in [13]:
-	for sample_no in [1,2,3,4]:
-		print day_to_plot, sample_no,"***"
+
+#set up parameters text file
+p_file = '/Users/mcallister/projects/INP/MOSSI/MOSSI_parameters_file-' + str(bt_length) +  'd.txt'
+#delete if the file exists
+try:
+    os.remove(p_file)
+except OSError:
+    pass
+with open(p_file,'w') as pf:
+	pf.write('sample_start_time' + '\t' + 'sample_end_time' + '\t' + 'fire_parameter' + '\t' + 'desert_parameter' + '\t' + 'open_water_parameter' + '\t' + 'sea_ice_parameter' + '\n' )
+
+i=0
+with open(mossi_file,'r') as f:
+	f.readline()
+	for line in f:
+		newline = line.split()
+		sample_no = newline[0]
+		start_time 	= parser.parse(newline[1] + '-'+ newline[2])
+		end_time	= parser.parse(newline[3] + '-'+ newline[4])
+		file_location = '/Users/mcallister/projects/INP/MOSSI/trajectories'
+		
 		#### set up the basemap instance  	
-		sample_date = datetime(2015,4,day_to_plot)
+		sample_date = datetime(start_time.year,start_time.month,start_time.day)
+		julian_sample_date = sample_date.timetuple().tm_yday
+		print newline[0], start_time, end_time, julian_sample_date 
 		#m = Basemap(width=15000000,height=11000000,
 		#            rsphere=(6378137.00,6356752.3142),\
 		#            resolution='l',area_thresh=1000.,projection='lcc',\
@@ -63,22 +80,9 @@ for day_to_plot in [13]:
 		m.drawmeridians(meridians,labels=[False,False,False,True])
 
 
-		#### get trajectories
-		if traj_type == 'posn_matrix':
-			file_location = '/Users/mcallister/projects/INP/trajectories/'+ location +'-'+ str(bt_length) +'d/sample'+ str(day_to_plot) +'_'+ str(sample_no) + 'w_PBL'
-			file_position = 17
-
-		if traj_type == 'met_ensemble':
-			file_location = '/Users/mcallister/projects/INP/trajectories/'+ location +'-20d/sample'+ str(day_to_plot) +'_'+ str(sample_no) + 'w_ens'
-			file_position = 14
-			if location == 'Alert':
-				file_position = 13
-
-		endpoints = INPmod.parseTrajectories(location,day_to_plot,sample_no,boundary_layer,bt_length,file_location, file_position)
-
-
 		#### trajectory heatmap
 		#get gridded data
+		endpoints = INPmod.parseMOSSITrajectories(file_location,start_time,end_time,boundary_layer,bt_length)
 		total_endpoints = len(endpoints)
 		np_endpoints = np.array(endpoints)
 		lats = np_endpoints[:,0] 
@@ -140,7 +144,8 @@ for day_to_plot in [13]:
 			
 			#zip together the density maps for the fires and endpoints
 			fire_overlap = [a*b for a,b in zip(density_trajs,density_fires)]
-			print 'hours*fires ',np.sum(fire_overlap)/total_endpoints
+			hours_fires_n = np.sum(fire_overlap)/total_endpoints
+			print 'hours*fires ',hours_fires_n
 			patch_coll = PatchCollection(patches,facecolor = '#ff531a',edgecolor='#ff531a')
 			fire_patches = axes.add_collection(patch_coll)
 
@@ -167,7 +172,8 @@ for day_to_plot in [13]:
 			tx = [row[0] for row in plot_pts]
 			ty = [row[1] for row in plot_pts]
 			#tests = m.scatter(tx,ty, color = 'orange')
-			print 'desert hours ', np.sum(endpoint_counts),np.sum(endpoint_counts)/total_endpoints
+			desert_hours_n = np.sum(endpoint_counts)/total_endpoints
+			print 'desert hours ', desert_hours_n
 
 
 
@@ -181,7 +187,7 @@ for day_to_plot in [13]:
 
 			#calc overlap for sea ice and enpoints
 			#plot a density map of sea ice points that is on the same grid as the endpoints
-			sea_ice, snow, sea_ice_pts = INPmod.getSeaIceAndSnow(m,2015, max_ice_day)
+			sea_ice, snow, sea_ice_pts = INPmod.getSeaIceAndSnow(m, start_time.year, julian_sample_date-bt_length)
 			lats_si = [row[1] for row in sea_ice_pts]  
 			lons_si = [row[0] for row in sea_ice_pts]
 			xs_si,ys_si,density_si,max_density_si = INPmod.getGriddedData(nx,ny,lats_si,lons_si,m)
@@ -192,7 +198,8 @@ for day_to_plot in [13]:
 				for traj_hours,si_pts in row:
 					if si_pts > 6 and traj_hours >0 :    
 						sea_ice_hours += traj_hours
-			print 'sea ice hours ',sea_ice_hours,sea_ice_hours/total_endpoints
+			sea_ice_hours_n = sea_ice_hours/total_endpoints
+			print 'sea ice hours ',sea_ice_hours_n
 			
 			#patches for plotting
 			si_patch_coll = PatchCollection(sea_ice,facecolor='#ffcc00',edgecolor='#ffcc00', alpha = 0.05)
@@ -227,10 +234,11 @@ for day_to_plot in [13]:
 			txo = [row[0] for row in test]
 			tyo = [row[1] for row in test]
 			#tests = m.scatter(txo,tyo)
+			open_water_hours_n = (ocean_hours-sea_ice_hours)/total_endpoints
 
 			print 'ocean hours ',ocean_hours, ocean_hours/total_endpoints
 			try:
-				print 'open water hours ',ocean_hours-sea_ice_hours, (ocean_hours-sea_ice_hours)/total_endpoints
+				print 'open water hours ',open_water_hours_n
 			except:
 				print 'no sea ice'
 
@@ -249,18 +257,25 @@ for day_to_plot in [13]:
 			ac = m.plot(x,y, color = 'k', linewidth = 2.5,)
 			
 
-
+		##save parameters
+		p_line = [start_time, end_time,round(hours_fires_n,4), round(desert_hours_n,4), round(open_water_hours_n,4), round(sea_ice_hours_n,4)]
+		with open(p_file,'a') as pf:
+			line = '\t'.join(str(x) for x in p_line)
+			pf.write(line + '\n')
 
 
 		#### add text
+		description = str(start_time.year)+'-'+str(start_time.month).zfill(2)+'-'+str(start_time.day).zfill(2)+ ' '+ str(start_time.hour).zfill(2) + ':'+ str(start_time.minute).zfill(2) + '-' +str(bt_length) + 'day back-trajectories'
 		bl = ''
 		if boundary_layer == True:
 				bl = '_inPBL'
-		plt.text(0.0, 1.025,'April '+ str(day_to_plot) + ', sample ' + str(sample_no) + bl + ' -' +str(bt_length) + 'days', fontsize = 14,transform=axes.transAxes)
+		plt.text(0.0, 1.025,'Sample starting at: ' + description, fontsize = 14,transform=axes.transAxes)
 
 		#### save
-		os.chdir('/Users/mcallister/projects/INP/footprint analysis/')
+		os.chdir('/Users/mcallister/projects/INP/MOSSI/footprint analysis/')
 
 		if save_fig == True:
-			plt.savefig(location + '_' + str(day_to_plot) +'-'+ str(sample_no)  + '_' +traj_type + bl + '-' +str(bt_length) + 'day_footprint.pdf',format = 'pdf', bbox_inches='tight') 
+			plt.savefig('sample' + sample_no + '_' + str(start_time.year)+'-'+str(start_time.month).zfill(2)+'-'+str(start_time.day).zfill(2) + '-' + str(start_time.hour).zfill(2) + str(start_time.minute).zfill(2)  + '_' + str(bt_length) +'day_back-trajectories'+ bl+ '_footprint.pdf',format = 'pdf', bbox_inches='tight') 
 		#plt.show()
+		plt.close()
+		i+=1

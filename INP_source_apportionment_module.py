@@ -13,11 +13,11 @@ from dateutil import parser
 import math
 from matplotlib.colors import LinearSegmentedColormap
 
-def getSeaIceAndSnow(map,day_of_year):
+def getSeaIceAndSnow(map,year,day_of_year):
 	si_patches = []
 	sn_patches = []
 	#binary arrays
-	path = '/Users/mcallister/projects/INP_Meng/NOAA snow and ice/'
+	path = '/Users/mcallister/projects/INP/NOAA snow and ice/'
 	os.chdir(path)
 
 	file_lon = 'imslon_24km.bin'
@@ -36,7 +36,8 @@ def getSeaIceAndSnow(map,day_of_year):
 	f_lat.close()
 
 	#NSIDC ascii data
-	file = 'ims2015'+str(day_of_year).zfill(3)+'_24km_v1.3.asc'
+	file = 'ims'+str(year)+str(day_of_year).zfill(3)+'_24km_v1.3.asc'
+	print file
 	sea_ice_pts = []
 	with open(file, 'r') as f:
 		for line in range(0,30):
@@ -82,9 +83,9 @@ def getSeaIceAndSnow(map,day_of_year):
 	return si_patches,sn_patches, sea_ice_pts
 
 
-def getMODISFires(sample_date,fire_threshold,bt_length):
+def getMODISFires(sample_date,fire_threshold,bt_length,MODIS_file):
 	fire_list = []
-	file = '/Users/mcallister/projects/INP_Meng/MODIS fire data/fire_archive_M6_6849.txt'
+	file = '/Users/mcallister/projects/INP/MODIS fire data/'+ MODIS_file
 	with open(file, 'r') as f:
 		f.readline()
 		for line in f:
@@ -108,7 +109,7 @@ def getDesertShapes(map):
 	patches = []
 	names 	= []
 	#shapefile citation 'Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com.''
-	map.readshapefile('/Users/mcallister/projects/INP_Meng/ne_50m_geography_regions_polys/ne_50m_geography_regions_polys', 'regions', drawbounds = False)
+	map.readshapefile('/Users/mcallister/projects/INP/ne_50m_geography_regions_polys/ne_50m_geography_regions_polys', 'regions', drawbounds = False)
 	for info, shape in zip(map.regions_info, map.regions):
 		if info['featurecla'] == 'Desert' and (info['region'] in['Asia' ,'North America' , 'Europe','Oceania']):
 			name = info['name']
@@ -118,7 +119,7 @@ def getDesertShapes(map):
  	return names,patches
 
 
-def parseTrajectories(location,day_to_plot,sample_no,boundary_layer,file_location,file_position):
+def parseTrajectories(location,day_to_plot,sample_no,boundary_layer,bt_length,file_location,file_position):
 	os.chdir(file_location)
 	file_posn = file_position
 	endpoints = []
@@ -132,13 +133,14 @@ def parseTrajectories(location,day_to_plot,sample_no,boundary_layer,file_locatio
 			traj_time = datetime(2015,4,day,hour,minute)
 			
 			if day == day_to_plot and sample_number == sample_no:
-				print file
+				#print file
 				tdump_file = open(file, 'r')
 				data_start = False
 				file_trajectories = {}
 				for line in tdump_file:
 					newline = line.split()
 					if data_start == True:
+						hours_along = float(newline[8])
 						lat 		= float(newline[9])
 						lon 		= float(newline[10])
 						height 		= float(newline[11]) # in m AMSL
@@ -146,6 +148,50 @@ def parseTrajectories(location,day_to_plot,sample_no,boundary_layer,file_locatio
 						mixed_depth = float(newline[14]) # in m AGL
 						terrain_ht	= float(newline[15]) # in m
 						endpoint 	= [lat, lon, height]
+						
+						#allow 20d bts to be used for shorter times
+						if abs(hours_along) > bt_length*24: 
+							break
+						if boundary_layer == True: 
+							if height < (terrain_ht + mixed_depth):
+								endpoints.append(endpoint)
+						else:
+							endpoints.append(endpoint)
+					
+					if newline[1] == 'PRESSURE':
+						data_start = True
+					
+				tdump_file.close() 
+
+	return endpoints
+
+
+def parseMOSSITrajectories(file_location,start_time,end_time,boundary_layer,bt_length):
+	os.chdir(file_location)
+	endpoints = []
+	for file in os.listdir('.'):
+		if file.startswith('INP_MOSSI'):  
+			file_date_time = parser.parse(file[10:-6])
+			if start_time <= file_date_time <= end_time:			
+				#print file
+				tdump_file = open(file, 'r')
+				data_start = False
+				file_trajectories = {}
+				for line in tdump_file:
+					newline = line.split()
+					if data_start == True:
+						hours_along = float(newline[8])
+						lat 		= float(newline[9])
+						lon 		= float(newline[10])
+						height 		= float(newline[11]) # in m AMSL
+						rain 		= float(newline[13])
+						mixed_depth = float(newline[14]) # in m AGL
+						terrain_ht	= float(newline[15]) # in m
+						endpoint 	= [lat, lon, height]
+						
+						#allow 20d bts to be used for shorter times
+						if abs(hours_along) > bt_length*24: 
+							break
 						if boundary_layer == True: 
 							if height < (terrain_ht + mixed_depth):
 								endpoints.append(endpoint)

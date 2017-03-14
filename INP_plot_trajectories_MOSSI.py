@@ -17,48 +17,43 @@ from matplotlib.colors import LinearSegmentedColormap
 import INP_source_apportionment_module as INPmod
 
 
-bt_length 				= 20
+bt_length 				= 10
 
 include_trajectories	= True
 
 include_arctic_circle 	= True
 
-include_oceans			= True
-
 include_fires			= True
 fire_threshold			= 80.
-MODIS_file				= 'fire_archive_M6_6849.txt'
+MODIS_file				= 'fire_archive_M6_8473.txt'
 
 include_sea_ice			= True
-max_ice_day				= 91 				#Inuvik 103 (april 13)  Eureka 91 (April 1)  Alert 91 (April 1)
+max_ice_day				= 236 				#Inuvik 103 (april 13)  Eureka 91 (April 1)  Alert 91 (April 1)
 
 include_deserts 		= True
 
-boundary_layer			= True
+boundary_layer			= False
 
-save_fig				= False
+save_fig				= True
 
+traj_type 				= 'met_ensemble'		#'posn_matrix' 'met_ensemble'
 nx, ny 					= 180,90. 				#grid
+mossi_file = '/Users/mcallister/projects/INP/MOSSI/MOSSI_sampling_start_stop_times_b.txt'
 
-mossi_file = '/Users/mcallister/projects/INP/MOSSI/MOSSI_sampling_start_stop_times.txt'
 
+i=0
 with open(mossi_file,'r') as f:
 	f.readline()
 	for line in f:
 		newline = line.split()
+		sample_no = newline[0]
 		start_time 	= parser.parse(newline[1] + '-'+ newline[2])
 		end_time	= parser.parse(newline[3] + '-'+ newline[4])
 		print newline[0], start_time, end_time
 		file_location = '/Users/mcallister/projects/INP/MOSSI/trajectories'
-		
-		#### set up the basemap instance  	
 		sample_date = datetime(start_time.year,start_time.month,start_time.day)
-		#m = Basemap(width=15000000,height=11000000,
-		#            rsphere=(6378137.00,6356752.3142),\
-		#            resolution='l',area_thresh=1000.,projection='lcc',\
-		#            lat_1=45.,lat_2=55,lat_0=50,lon_0=140.)
-		m = Basemap(projection='npstere',boundinglat=40,lon_0=270,resolution='l')
 
+		m = Basemap(projection='npstere',boundinglat=40,lon_0=270,resolution='l')
 		fig, axes = plt.subplots(1,1,figsize=(12, 10), facecolor='w', edgecolor='k')
 		m.drawcoastlines()
 		#m.drawcountries()
@@ -68,13 +63,14 @@ with open(mossi_file,'r') as f:
 		m.drawmeridians(meridians,labels=[False,False,False,True])
 
 
-		#### trajectory heatmap
+		#### trajectories
 		endpoints = INPmod.parseMOSSITrajectories(file_location,start_time,end_time,boundary_layer,bt_length)
 		total_endpoints = len(endpoints)
 		np_endpoints = np.array(endpoints)
 		lats = np_endpoints[:,0] 
 		lons = np_endpoints[:,1]
 		heights = np_endpoints[:,2]
+
 
 		if include_trajectories == True:
 			x,y = m(lons, lats)
@@ -117,7 +113,7 @@ with open(mossi_file,'r') as f:
 			
 		#### add sea ice and snow
 		if include_sea_ice == True:
-			sea_ice, snow, sea_ice_pts = INPmod.getSeaIceAndSnow(m, max_ice_day)
+			sea_ice, snow, sea_ice_pts = INPmod.getSeaIceAndSnow(m, start_time.year, max_ice_day)
 			si_patch_coll = PatchCollection(sea_ice,facecolor='#ffcc00',edgecolor='#ffcc00', alpha = 0.05)
 			sea_ice_patches = axes.add_collection(si_patch_coll)
 			#sn_patch_coll = PatchCollection(snow,facecolor='white',edgecolor='white', alpha = 0.3)
@@ -145,16 +141,16 @@ with open(mossi_file,'r') as f:
 			ac = m.plot(x,y, color = 'k', linewidth = 2.5,)
 			
 
-
-
-
 		#### add text
-		plt.text(0.0, 1.025,'April '+ str(day_to_plot) + ', sample ' + str(sample_no) + ' -' +str(bt_length) + 'days', fontsize = 14,transform=axes.transAxes)
+		description = str(start_time.year)+'-'+str(start_time.month).zfill(2)+'-'+str(start_time.day).zfill(2)+ ' '+ str(start_time.hour).zfill(2) + ':'+ str(start_time.minute).zfill(2) + '-' +str(bt_length) + 'day back-trajectories'
+		plt.text(0.0, 1.025,'Sample starting at: ' + description, fontsize = 14,transform=axes.transAxes)
 
 		#### save
-		os.chdir('/Users/mcallister/projects/INP/footprint analysis/')
+		os.chdir('/Users/mcallister/projects/INP/MOSSI/footprint analysis/')
 
 		if save_fig == True:
-			plt.savefig(location + '_' + str(day_to_plot) +'-'+ str(sample_no)  + '_' +traj_type + '-' +str(bt_length) + 'day_trajectories.pdf',format = 'pdf', bbox_inches='tight') 
+			plt.savefig('sample' + sample_no + '_' + str(start_time.year)+'-'+str(start_time.month).zfill(2)+'-'+str(start_time.day).zfill(2) + '-' + str(start_time.hour).zfill(2) + str(start_time.minute).zfill(2)  + '_' + str(bt_length) +'day_back-trajectories_trajectories.pdf',format = 'pdf', bbox_inches='tight') 
 
-		plt.show()
+		#plt.show()
+		plt.close()
+		i+=1
