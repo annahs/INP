@@ -25,10 +25,10 @@ include_arctic_circle 	= True
 
 include_fires			= True
 fire_threshold			= 80.
-MODIS_file				= 'fire_archive_M6_8473.txt'
+MODIS_file				= 'fire_archive_M6_8493-MOSSI2014.txt'
 
 include_sea_ice			= True
-max_ice_day				= 236 				#Inuvik 103 (april 13)  Eureka 91 (April 1)  Alert 91 (April 1)
+max_ice_day				= 185 				#Inuvik 103 (april 13)  Eureka 91 (April 1)  Alert 91 (April 1)
 
 include_deserts 		= True
 
@@ -38,7 +38,7 @@ save_fig				= True
 
 traj_type 				= 'met_ensemble'		#'posn_matrix' 'met_ensemble'
 nx, ny 					= 180,90. 				#grid
-mossi_file = '/Users/mcallister/projects/INP/MOSSI/MOSSI_sampling_start_stop_times_b.txt'
+mossi_file = '/Users/mcallister/projects/INP/MOSSI/MOSSI_sampling_start_stop_times_2014.txt' 
 
 
 i=0
@@ -52,6 +52,7 @@ with open(mossi_file,'r') as f:
 		print newline[0], start_time, end_time
 		file_location = '/Users/mcallister/projects/INP/MOSSI/trajectories'
 		sample_date = datetime(start_time.year,start_time.month,start_time.day)
+		julian_sample_date = sample_date.timetuple().tm_yday
 
 		m = Basemap(projection='npstere',boundinglat=40,lon_0=270,resolution='l')
 		fig, axes = plt.subplots(1,1,figsize=(12, 10), facecolor='w', edgecolor='k')
@@ -113,7 +114,7 @@ with open(mossi_file,'r') as f:
 			
 		#### add sea ice and snow
 		if include_sea_ice == True:
-			sea_ice, snow, sea_ice_pts = INPmod.getSeaIceAndSnow(m, start_time.year, max_ice_day)
+			sea_ice, snow, sea_ice_pts = INPmod.getSeaIceAndSnow(m, start_time.year, julian_sample_date-bt_length)
 			si_patch_coll = PatchCollection(sea_ice,facecolor='#ffcc00',edgecolor='#ffcc00', alpha = 0.05)
 			sea_ice_patches = axes.add_collection(si_patch_coll)
 			#sn_patch_coll = PatchCollection(snow,facecolor='white',edgecolor='white', alpha = 0.3)
@@ -146,7 +147,7 @@ with open(mossi_file,'r') as f:
 		plt.text(0.0, 1.025,'Sample starting at: ' + description, fontsize = 14,transform=axes.transAxes)
 
 		#### save
-		os.chdir('/Users/mcallister/projects/INP/MOSSI/footprint analysis/')
+		os.chdir('/Users/mcallister/projects/INP/MOSSI/footprint analysis 2014/')
 
 		if save_fig == True:
 			plt.savefig('sample' + sample_no + '_' + str(start_time.year)+'-'+str(start_time.month).zfill(2)+'-'+str(start_time.day).zfill(2) + '-' + str(start_time.hour).zfill(2) + str(start_time.minute).zfill(2)  + '_' + str(bt_length) +'day_back-trajectories_trajectories.pdf',format = 'pdf', bbox_inches='tight') 

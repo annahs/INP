@@ -36,7 +36,7 @@ def getSeaIceAndSnow(map,year,day_of_year):
 	f_lat.close()
 
 	#NSIDC ascii data
-	file = 'ims'+str(year)+str(day_of_year).zfill(3)+'_24km_v1.3.asc'
+	file = 'ims'+str(year)+str(day_of_year).zfill(3)+'_24km_v1.2.asc'
 	print file
 	sea_ice_pts = []
 	with open(file, 'r') as f:
@@ -173,7 +173,7 @@ def parseMOSSITrajectories(file_location,start_time,end_time,boundary_layer,bt_l
 		if file.startswith('INP_MOSSI'):  
 			file_date_time = parser.parse(file[10:-6])
 			if start_time <= file_date_time <= end_time:			
-				#print file
+				print file
 				tdump_file = open(file, 'r')
 				data_start = False
 				file_trajectories = {}

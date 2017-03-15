@@ -14,9 +14,12 @@ import matplotlib.colors
 #Note: With respect to the ASCII text data files, the lat/lon grids are flipped in orientation. 
 #Specifically, the binary arrays are stored beginning with the upper left corner, whereas the ASCII text data are stored beginning with the lower left corner. 
 #Please be aware of this when working with these files.
+
+
 dates = []
-for day in range(1,23):
-	dates.append(datetime(2016,8,day))
+for julian_day in range(175,224):
+	dates.append(datetime(2014,1,1) + timedelta(days=julian_day-1))
+
 
 path = '/Users/mcallister/projects/INP/NOAA snow and ice/'
 os.chdir(path)
@@ -27,7 +30,7 @@ for date in dates:
 	day_of_year = date.timetuple().tm_yday
 
 	#NSIDC ascii data
-	file = 'ims2016'+str(day_of_year).zfill(2)+'_24km_v1.3.asc'
+	file = 'ims2014'+str(day_of_year).zfill(2)+'_24km_v1.2.asc'
 	plot_data = []
 	with open(file, 'r') as f:
 		for line in range(0,30):
@@ -41,7 +44,7 @@ for date in dates:
 
 	print date,day_of_year, ice
 	ice_extents[date] = ice
-	
+
 max_day = max(ice_extents, key=ice_extents.get)
-print max_day, ice_extents[max_day]
+print '***',max_day, ice_extents[max_day]
 		

@@ -14,7 +14,7 @@ import math
 from matplotlib.colors import LinearSegmentedColormap
 import INP_source_apportionment_module as INPmod
 
-bt_length 				= 20
+bt_length 				= 10
 
 include_trajectories	= True
 
@@ -24,11 +24,11 @@ include_oceans			= True
 
 include_fires			= True
 fire_threshold			= 80.
-MODIS_file				= 'fire_archive_M6_8473.txt'
+MODIS_file				= 'fire_archive_M6_8493-MOSSI2014.txt'
 
 
 include_sea_ice			= True
-max_ice_day				= 195 				#MOSSI max is 185 (jul 03) (min is Aug 22)
+max_ice_day				= 185 				#MOSSI 2016 max is 185 for 20d 195 for 10d, 2014 max is 175 for 20d 185 for 10d
 
 include_deserts 		= True
 
@@ -38,11 +38,11 @@ save_fig				= True
 
 nx, ny 					= 180,90. 				#grid
 
-mossi_file = '/Users/mcallister/projects/INP/MOSSI/MOSSI_sampling_start_stop_times.txt'
+mossi_file = '/Users/mcallister/projects/INP/MOSSI/MOSSI_sampling_start_stop_times_2014.txt' 
 
 
 #set up parameters text file
-p_file = '/Users/mcallister/projects/INP/MOSSI/MOSSI_parameters_file-' + str(bt_length) +  'd.txt'
+p_file = '/Users/mcallister/projects/INP/MOSSI/AmundsenINP_2014_footprint_parameters-' + str(bt_length) +  'd.txt'
 #delete if the file exists
 try:
     os.remove(p_file)
@@ -51,6 +51,7 @@ except OSError:
 with open(p_file,'w') as pf:
 	pf.write('sample_start_time' + '\t' + 'sample_end_time' + '\t' + 'fire_parameter' + '\t' + 'desert_parameter' + '\t' + 'open_water_parameter' + '\t' + 'sea_ice_parameter' + '\n' )
 
+traj_file_location = '/Users/mcallister/projects/INP/MOSSI/trajectories'
 i=0
 with open(mossi_file,'r') as f:
 	f.readline()
@@ -59,7 +60,6 @@ with open(mossi_file,'r') as f:
 		sample_no = newline[0]
 		start_time 	= parser.parse(newline[1] + '-'+ newline[2])
 		end_time	= parser.parse(newline[3] + '-'+ newline[4])
-		file_location = '/Users/mcallister/projects/INP/MOSSI/trajectories'
 		
 		#### set up the basemap instance  	
 		sample_date = datetime(start_time.year,start_time.month,start_time.day)
@@ -82,7 +82,7 @@ with open(mossi_file,'r') as f:
 
 		#### trajectory heatmap
 		#get gridded data
-		endpoints = INPmod.parseMOSSITrajectories(file_location,start_time,end_time,boundary_layer,bt_length)
+		endpoints = INPmod.parseMOSSITrajectories(traj_file_location,start_time,end_time,boundary_layer,bt_length)
 		total_endpoints = len(endpoints)
 		np_endpoints = np.array(endpoints)
 		lats = np_endpoints[:,0] 
@@ -272,10 +272,11 @@ with open(mossi_file,'r') as f:
 		plt.text(0.0, 1.025,'Sample starting at: ' + description, fontsize = 14,transform=axes.transAxes)
 
 		#### save
-		os.chdir('/Users/mcallister/projects/INP/MOSSI/footprint analysis/')
+		os.chdir('/Users/mcallister/projects/INP/MOSSI/footprint analysis 2014/')
 
 		if save_fig == True:
 			plt.savefig('sample' + sample_no + '_' + str(start_time.year)+'-'+str(start_time.month).zfill(2)+'-'+str(start_time.day).zfill(2) + '-' + str(start_time.hour).zfill(2) + str(start_time.minute).zfill(2)  + '_' + str(bt_length) +'day_back-trajectories'+ bl+ '_footprint.pdf',format = 'pdf', bbox_inches='tight') 
-		#plt.show()
+		else:
+			plt.show()
 		plt.close()
 		i+=1
