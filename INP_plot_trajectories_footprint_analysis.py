@@ -15,10 +15,8 @@ from matplotlib.colors import LinearSegmentedColormap
 import INP_source_apportionment_module as INPmod
 
 
-location	 			= 'Eureka'
-day_to_plot 			= 13				#Alert 	7,8,9  Eureka 11,13  Inuvik 20, 21
-sample_no 				= 3					#Alert 7-5, 8-4, 9-3  Eureka 11-4, 13-4  Inuvik 20-45, 21-4
-bt_length 				= 20
+location	 			= 'Inuvik'#Alert 7-5, 8-4, 9-3  Eureka 11-4, 13-4  Inuvik 20-45, 21-4
+bt_length 				= 10
 
 include_trajectories	= True
 
@@ -31,28 +29,40 @@ fire_threshold			= 80.
 MODIS_file				= 'fire_archive_M6_6849.txt'
 
 include_sea_ice			= True
-max_ice_day				= 91 				#Inuvik 103 (april 13)  Eureka 91 (April 1)  Alert 91 (April 1)
+max_ice_day				= 103 				#Inuvik 103 (april 13)  Eureka 91 (April 1)  Alert 91 (April 1)
 
 include_deserts 		= True
 
 boundary_layer			= True
 
-save_fig				= False
+save_fig				= True
 
 traj_type 				= 'met_ensemble'		#'posn_matrix' 'met_ensemble'
 nx, ny 					= 180,90. 				#grid
 
+if save_fig == True:
+	#set up parameters text file
+	p_file = '/Users/mcallister/projects/INP/footprint analysis/InuvikINP_footprint_parameters-' + str(bt_length) +  'd.txt'
+	#delete if the file exists
+	try:
+	    os.remove(p_file)
+	except OSError:
+	    pass
+	with open(p_file,'w') as pf:
+		pf.write('sample_date' + '\t' + 'sample_number' + '\t' + 'fire_parameter' + '\t' + 'desert_parameter' + '\t' + 'open_water_parameter' + '\t' + 'sea_ice_parameter' + '\n' )
 
-for day_to_plot in [13]:
-	for sample_no in [1,2,3,4]:
+for day_to_plot in [20,21]:
+	for sample_no in [1,2,3,4,5]:
 		print day_to_plot, sample_no,"***"
 		#### set up the basemap instance  	
 		sample_date = datetime(2015,4,day_to_plot)
-		#m = Basemap(width=15000000,height=11000000,
-		#            rsphere=(6378137.00,6356752.3142),\
-		#            resolution='l',area_thresh=1000.,projection='lcc',\
-		#            lat_1=45.,lat_2=55,lat_0=50,lon_0=140.)
-		m = Basemap(projection='npstere',boundinglat=40,lon_0=270,resolution='l')
+		if location == 'Inuvik':
+			m = Basemap(width=15000000,height=11000000,
+		            rsphere=(6378137.00,6356752.3142),\
+		            resolution='l',area_thresh=1000.,projection='lcc',\
+		            lat_1=45.,lat_2=55,lat_0=50,lon_0=140.)
+		if location in ['Alert','Eureka']:
+			m = Basemap(projection='npstere',boundinglat=40,lon_0=270,resolution='l')
 
 		fig, axes = plt.subplots(1,1,figsize=(12, 10), facecolor='w', edgecolor='k')
 		m.drawcoastlines()
@@ -69,7 +79,7 @@ for day_to_plot in [13]:
 			file_position = 17
 
 		if traj_type == 'met_ensemble':
-			file_location = '/Users/mcallister/projects/INP/trajectories/'+ location +'-20d/sample'+ str(day_to_plot) +'_'+ str(sample_no) + 'w_ens'
+			file_location = '/Users/mcallister/projects/INP/trajectories/'+ location +'-10d/sample'+ str(day_to_plot) +'_'+ str(sample_no) + 'w_ens'
 			file_position = 14
 			if location == 'Alert':
 				file_position = 13
@@ -140,7 +150,8 @@ for day_to_plot in [13]:
 			
 			#zip together the density maps for the fires and endpoints
 			fire_overlap = [a*b for a,b in zip(density_trajs,density_fires)]
-			print 'hours*fires ',np.sum(fire_overlap)/total_endpoints
+			hours_fires_n = np.sum(fire_overlap)/total_endpoints
+			print 'hours*fires ',hours_fires_n
 			patch_coll = PatchCollection(patches,facecolor = '#ff531a',edgecolor='#ff531a')
 			fire_patches = axes.add_collection(patch_coll)
 
@@ -167,7 +178,8 @@ for day_to_plot in [13]:
 			tx = [row[0] for row in plot_pts]
 			ty = [row[1] for row in plot_pts]
 			#tests = m.scatter(tx,ty, color = 'orange')
-			print 'desert hours ', np.sum(endpoint_counts),np.sum(endpoint_counts)/total_endpoints
+			desert_hours_n = np.sum(endpoint_counts)/total_endpoints
+			print 'desert hours ', desert_hours_n
 
 
 
@@ -192,7 +204,8 @@ for day_to_plot in [13]:
 				for traj_hours,si_pts in row:
 					if si_pts > 6 and traj_hours >0 :    
 						sea_ice_hours += traj_hours
-			print 'sea ice hours ',sea_ice_hours,sea_ice_hours/total_endpoints
+			sea_ice_hours_n = sea_ice_hours/total_endpoints
+			print 'sea ice hours ',sea_ice_hours_n
 			
 			#patches for plotting
 			si_patch_coll = PatchCollection(sea_ice,facecolor='#ffcc00',edgecolor='#ffcc00', alpha = 0.05)
@@ -206,7 +219,8 @@ for day_to_plot in [13]:
 			#	lat 			= sea_ice_pt[1]
 			#	x,y = m(lon,lat)
 			#	sea_ice_markers = m.scatter(x,y,color = 'r')
-
+		else:
+			sea_ice_hours = 0
 
 		#### add oceans
 		if include_oceans == True:
@@ -216,21 +230,23 @@ for day_to_plot in [13]:
 				for xpt,ypt in row:
 					#for some reason is_land() == False is screwed up by the poles, so we'll restrict our search area a bit
 					lonpt, latpt = m(xpt,ypt,inverse=True)
-					if (-90 < latpt < 89.9):   
+					if (-90 < latpt < 89.9) and (lonpt < 0 or lonpt >110):   
 						if m.is_land(xpt, ypt) == False:
 							x_index,y_index = INPmod.find_index_of_nearest_xy(xs,ys,xpt,ypt)
-							o_endpoint_count = density_trajs[x_index][y_index]
+							if y_index < 180:
+								o_endpoint_count = density_trajs[x_index][y_index]
 							if o_endpoint_count > 0:
 								test.append([xpt,ypt])
 							ocean_hours += o_endpoint_count
 
 			txo = [row[0] for row in test]
 			tyo = [row[1] for row in test]
-			#tests = m.scatter(txo,tyo)
+			tests = m.scatter(txo,tyo)
+			open_water_hours_n = (ocean_hours-sea_ice_hours)/total_endpoints
 
 			print 'ocean hours ',ocean_hours, ocean_hours/total_endpoints
 			try:
-				print 'open water hours ',ocean_hours-sea_ice_hours, (ocean_hours-sea_ice_hours)/total_endpoints
+				print 'open water hours ',open_water_hours_n
 			except:
 				print 'no sea ice'
 
@@ -249,7 +265,7 @@ for day_to_plot in [13]:
 			ac = m.plot(x,y, color = 'k', linewidth = 2.5,)
 			
 
-
+		
 
 
 		#### add text
@@ -258,9 +274,14 @@ for day_to_plot in [13]:
 				bl = '_inPBL'
 		plt.text(0.0, 1.025,'April '+ str(day_to_plot) + ', sample ' + str(sample_no) + bl + ' -' +str(bt_length) + 'days', fontsize = 14,transform=axes.transAxes)
 
-		#### save
-		os.chdir('/Users/mcallister/projects/INP/footprint analysis/')
+	
 
 		if save_fig == True:
-			plt.savefig(location + '_' + str(day_to_plot) +'-'+ str(sample_no)  + '_' +traj_type + bl + '-' +str(bt_length) + 'day_footprint.pdf',format = 'pdf', bbox_inches='tight') 
-		#plt.show()
+			os.chdir('/Users/mcallister/projects/INP/footprint analysis/')
+			p_line = [sample_date.date(),sample_no,round(hours_fires_n,4), round(desert_hours_n,4), round(open_water_hours_n,4), round(sea_ice_hours_n,4)]
+			with open(p_file+'_b','a') as pf:
+				line = '\t'.join(str(x) for x in p_line)
+				pf.write(line + '\n')
+			#plt.savefig(location + '_' + str(day_to_plot) +'-'+ str(sample_no)  + '_' +traj_type + bl + '-' +str(bt_length) + 'day_footprint.pdf',format = 'pdf', bbox_inches='tight') 
+		else:
+			plt.show()

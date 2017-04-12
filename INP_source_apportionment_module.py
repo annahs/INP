@@ -13,15 +13,31 @@ from dateutil import parser
 import math
 from matplotlib.colors import LinearSegmentedColormap
 
-def getSeaIceAndSnow(map,year,day_of_year):
+def getCoordFromDB(origin_lon,origin_lat,radius_earth,bearing, distance):
+	lat1 = math.radians(origin_lat) #Current lat point converted to radians
+	lon1 = math.radians(origin_lon) #Current long point converted to radians
+
+	lat2 = math.asin( math.sin(lat1)*math.cos(distance/radius_earth) +
+	     math.cos(lat1)*math.sin(distance/radius_earth)*math.cos(bearing))
+
+	lon2 = lon1 + math.atan2(math.sin(bearing)*math.sin(distance/radius_earth)*math.cos(lat1),
+	             math.cos(distance/radius_earth)-math.sin(lat1)*math.sin(lat2))
+
+	lat2 = math.degrees(lat2)
+	lon2 = math.degrees(lon2)
+
+	return lon2, lat2
+
+
+def getSeaIceAndSnow(bmap,year,day_of_year):
 	si_patches = []
 	sn_patches = []
 	#binary arrays
-	path = '/Users/mcallister/projects/INP/NOAA snow and ice/'
+	path = '/Users/mcallister/projects/INP/NOAA snow and ice 4km/'
 	os.chdir(path)
 
-	file_lon = 'imslon_24km.bin'
-	file_lat = 'imslat_24km.bin'
+	file_lon = 'imslon_4km.bin'
+	file_lat = 'imslat_4km.bin'
 
 	f_lon = open(file_lon, 'rb')
 	f_lat = open(file_lat, 'rb')
@@ -29,14 +45,14 @@ def getSeaIceAndSnow(map,year,day_of_year):
 	lons_s = np.fromfile(f_lon, dtype='<f4')
 	lats_s = np.fromfile(f_lat, dtype='<f4')
 
-	lons = np.reshape(lons_s, [1024,1024], order='C')
-	lats = np.reshape(lats_s, [1024,1024], order='C')
+	lons = np.reshape(lons_s, [6144,6144], order='C')
+	lats = np.reshape(lats_s, [6144,6144], order='C')
 
 	f_lon.close()
 	f_lat.close()
 
 	#NSIDC ascii data
-	file = 'ims'+str(year)+str(day_of_year).zfill(3)+'_24km_v1.2.asc'
+	file = 'ims'+str(year)+str(175).zfill(3)+'_4km_v1.2.asc'
 	print file
 	sea_ice_pts = []
 	with open(file, 'r') as f:
@@ -48,39 +64,39 @@ def getSeaIceAndSnow(map,year,day_of_year):
 			col = 0
 			for item in newline:
 				value = int(item)
-				lat_o = lats[row][col]
-				lon_o = lons[row][col] - 20
+				lat_o = lats[row][col] 
+				lon_o = -(lons[row][col] - 20)
 				if lon_o < -180:
 					lon_o = 180-(-180-lon_o)
 
-				#move marker to center of 24x24 cell (11842.495 is half width of cell(23,684.997 meters per cell in x and y))
-				if value == 3:
-					lat_center = lat_o  + (11842.495/6371200.0) * (180 / math.pi);
-					lon_center = lon_o  + (11842.495/6371200.0) * (180 / math.pi) / math.cos(math.radians(lat_o * math.pi/180));
-					sea_ice_pts.append([-lon_center,lat_center])
+				cell_side_length = 4000#23684.997 #(23,684.997 meters per cell in x and y)
+				cell_hypotenuse = math.sqrt((cell_side_length**2)*2)
+				radius_of_earth = 6371200.0  #meters 
+				#move marker to center of cell 
+				if value in [3]:
+					lon_center,lat_center = lon_o,lat_o,#getCoordFromDB(lon_o,lat_o,radius_of_earth,math.radians(45), (cell_hypotenuse/2))
+
+					if lat_center > 40:
+						sea_ice_pts.append([lon_center,lat_center])
 				
-				#now make the patches for display
-				if np.isnan(lon_o) == False and np.isnan(lat_o) == False and lat_o >= 0:
-					if value == 3:
-						x1,y1 = map(-lon_o,lat_o)
-						x2,y2 = map(-(lon_o+(23684.997/6371200.0)*(180/math.pi)/math.cos(math.radians(lat_o*math.pi/180))),lat_o)
-						x3,y3 = map(-lon_o,lat_o-(23684.997/6371200.0)*(180 / math.pi))
-						x4,y4 = map(-(lon_o+(23684.997/6371200.0)*(180/math.pi)/math.cos(math.radians(lat_o*math.pi/180))),(lat_o-(23684.997/6371200.0)*(180 / math.pi)))
-						p = Polygon([(x1,y1),(x2,y2),(x3,y3),(x4,y4)]) 
-						si_patches.append(p)
-					if value == 4:
-						x1,y1 = map(-lon_o,lat_o)
-						x2,y2 = map(-(lon_o+(23684.997/6371200.0)*(180/math.pi)/math.cos(math.radians(lat_o*math.pi/180))),lat_o)
-						x3,y3 = map(-lon_o,lat_o-(23684.997/6371200.0)*(180 / math.pi))
-						x4,y4 = map(-(lon_o+(23684.997/6371200.0)*(180/math.pi)/math.cos(math.radians(lat_o*math.pi/180))),(lat_o-(23684.997/6371200.0)*(180 / math.pi)))
-						p = Polygon([(x1,y1),(x2,y2),(x4,y4),(x3,y3)]) 
-						sn_patches.append(p)
+					#now make the patches for display
+					if np.isnan(lon_o) == False and np.isnan(lat_o) == False and lat_o >= 0:
+						lon_1,lat_1 = getCoordFromDB(lon_o,lat_o,radius_of_earth,math.radians(315),cell_hypotenuse/2)
+						lon_2,lat_2 = getCoordFromDB(lon_o,lat_o,radius_of_earth,math.radians(45),cell_hypotenuse/2)
+						lon_3,lat_3 = getCoordFromDB(lon_o,lat_o,radius_of_earth,math.radians(135),cell_hypotenuse/2)
+						lon_4,lat_4 = getCoordFromDB(lon_o,lat_o,radius_of_earth,math.radians(225),cell_hypotenuse/2)
+						p = Polygon([bmap(lon_1,lat_1),bmap(lon_2,lat_2),bmap(lon_3,lat_3),bmap(lon_4,lat_4)]) 
+						if value == 3:
+							si_patches.append(p)
+						if value == 4:
+							sn_patches.append(p)
 				col +=1
 			row+=1
 
 	#print len(si_patches), ' sea ice pixels'
 	#print len(sn_patches), ' snow pixels'
 	return si_patches,sn_patches, sea_ice_pts
+
 
 
 def getMODISFires(sample_date,fire_threshold,bt_length,MODIS_file):
@@ -105,12 +121,12 @@ def getMODISFires(sample_date,fire_threshold,bt_length,MODIS_file):
 	print len(fire_list), ' fires'
 	return fire_list
 
-def getDesertShapes(map):
+def getDesertShapes(bmap):
 	patches = []
 	names 	= []
-	#shapefile citation 'Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com.''
-	map.readshapefile('/Users/mcallister/projects/INP/ne_50m_geography_regions_polys/ne_50m_geography_regions_polys', 'regions', drawbounds = False)
-	for info, shape in zip(map.regions_info, map.regions):
+	#shapefile citation 'Made with Natural Earth. Free vector and raster bmap data @ naturalearthdata.com.''
+	bmap.readshapefile('/Users/mcallister/projects/INP/ne_50m_geography_regions_polys/ne_50m_geography_regions_polys', 'regions', drawbounds = False)
+	for info, shape in zip(bmap.regions_info, bmap.regions):
 		if info['featurecla'] == 'Desert' and (info['region'] in['Asia' ,'North America' , 'Europe','Oceania']):
 			name = info['name']
 			names.append(name)
@@ -215,7 +231,7 @@ def makeColormap(c1,c2,c3,max_density):
 	return my_cmap
 
 
-def getGriddedData(nx,ny,lats,lons,map):
+def getGriddedData(nx,ny,lats,lons,bmap):
 	# compute appropriate bins to histogram the data into
 	lon_bins = np.linspace(-180, 180, nx+1)
 	lat_bins = np.linspace(-90, 90, ny+1)
@@ -230,9 +246,12 @@ def getGriddedData(nx,ny,lats,lons,map):
 	lon_bins_2d, lat_bins_2d = np.meshgrid(lon_bins, lat_bins)
 
 	# convert the xs and ys to map coordinates
-	xs, ys = map(lon_bins_2d, lat_bins_2d)
+	xs, ys = bmap(lon_bins_2d, lat_bins_2d)
 
-	return xs,ys,density,density.max()
+	return xs,ys,density,density.max(),lon_bins_2d, lat_bins_2d
+
+
+
 
 
 def find_index_of_nearest_xy(y_array, x_array, y_point, x_point):
@@ -240,3 +259,31 @@ def find_index_of_nearest_xy(y_array, x_array, y_point, x_point):
     idy,idx = np.where(distance==distance.min())
    
     return idy[0],idx[0]
+
+
+
+def haversine(lon1, lat1, lon2, lat2,radius_earth):
+    """
+    Calculate the great circle distance between two points 
+    on the earth (specified in decimal degrees)
+    """
+    # convert decimal degrees to radians 
+    lon1, lat1, lon2, lat2 = map(math.radians, [lon1, lat1, lon2, lat2])
+    # haversine formula 
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1 
+    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+    c = 2 * math.asin(math.sqrt(a)) 
+    m = radius_earth * c
+    
+    return m
+
+def getOceanGridForOverlap(ocean_pts,ll_lon,ll_lat,grid_size,overlap_grid_pts_list):
+		for row in ocean_pts:
+			opglon = row[0]
+			opglat = row[1]
+			if (ll_lon <= opglon < (ll_lon+grid_size[0])) and (ll_lat <= opglat < (ll_lat+grid_size[1])):
+				overlap_grid_pts_list.append([opglon,opglat])
+
+		return overlap_grid_pts_list
+

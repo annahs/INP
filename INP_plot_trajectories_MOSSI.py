@@ -17,7 +17,7 @@ from matplotlib.colors import LinearSegmentedColormap
 import INP_source_apportionment_module as INPmod
 
 
-bt_length 				= 10
+bt_length 				= 20
 
 include_trajectories	= True
 
@@ -28,7 +28,7 @@ fire_threshold			= 80.
 MODIS_file				= 'fire_archive_M6_8493-MOSSI2014.txt'
 
 include_sea_ice			= True
-max_ice_day				= 185 				#Inuvik 103 (april 13)  Eureka 91 (April 1)  Alert 91 (April 1)
+max_ice_day				= 175 				#MOSSI 2016 max is 185 for 20d 195 for 10d, 2014 max is 175 for 20d 185 for 10d
 
 include_deserts 		= True
 
@@ -126,7 +126,6 @@ with open(mossi_file,'r') as f:
 			#	lat 			= sea_ice_pt[1]
 			#	x,y = m(lon,lat)
 			#	sea_ice_markers = m.scatter(x,y,color = 'r')
-
 
 
 		#### add arctic circle

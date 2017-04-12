@@ -17,8 +17,7 @@ day = 9
 sample_number = 3   #Alert 7-4, 8-4, 9-3  Eureka 11-3, 13-4  Inuvik 20-45, 21-4
 duration = -480 #negative for back trajectories
 minute_interval = 2
-mossi_file = '/Users/mcallister/projects/INP/MOSSI/MOSSI_sampling_2014_end_times.txt'
-
+mossi_file = '/Users/mcallister/projects/INP/MOSSI/MOSSI_sampling_2014-v2_b.txt'
 
 def addDistance(lat0,lon0,delta):
 	lat = lat0 + (180./math.pi)*(delta/6371000.)
@@ -95,7 +94,6 @@ def MOSSIsamples(file,duration):
 			alt 	= 15#float(newline[2])
 			date_time = date + ' ' + time 
 			sample_time = parser.parse(date_time)
-		
 			print sample_time
 			trajectory_generator.generate_bulktraj(
 				'INP_MOSSI_', 0, r'/Users/mcallister/Hysplit4/working',
